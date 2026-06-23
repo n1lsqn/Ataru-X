@@ -516,44 +516,7 @@ External
 
 # 開発ルール・ガイドライン
 
-## 基本方針
-
-- プレースホルダーや未実装 `TODO` を残したままタスクを完了しない
-- コード変更後はビルド・リンター・テストを実行し、エラーを自己修復してから完了を報告する
-- 依頼スコープ外のファイルは変更しない。変更が必要な場合は事前に確認する
-- ユーザーへの説明・報告はすべて日本語で行う
-
-## タスク開始時
-
-1. 目的・スコープ・完了条件をユーザーと合意してから着手する
-2. 関連ファイルを先に読み込み、既存の設計意図を把握する
-3. 不明点は作業開始前にまとめて質問する（作業中に何度も中断しない）
-
-## タスク完了時
-
-1. 変更内容のサマリーを日本語で報告する（何を・なぜ・どう変えたか）
-2. 作業ログセクションに今回の作業内容を追記する
-3. 以下を実行してコミットする
-
-```bash
-git add .
-git commit -m "<type>(<scope>): <変更内容の要約>"
-```
-
-**type 一覧:** `feat` / `fix` / `refactor` / `style` / `test` / `docs` / `chore` / `perf`
-
-## コーディング規約
-
-- `any` の使用は原則禁止（`unknown` + 型ガードを使う）
-- シークレット・APIキーはコードにハードコードしない（`.env` で管理）
-- ユーザー入力はサーバーサイドでバリデーションする
-- 1ファイル・1コンポーネントの責務は1つ
-- 既存のコードスタイル・命名規則・フォルダ構造に従う
-
-## セキュリティ
-
-- `.env` はコミットしない（`.gitignore` に追加済みか確認する）
-- 保護されたルート・APIエンドポイントには必ず認証チェックを実装する
+開発における基本方針、共通コーディング規約、および Docker Compose のビルド高速化ガイドラインについては、[AGENTS_BASE.md](file:///home/n1lsqn/workspaces/Ataru-X/AGENTS_BASE.md) を参照・厳守してください。
 
 ---
 
@@ -581,9 +544,11 @@ git commit -m "<type>(<scope>): <変更内容の要約>"
 
 ## 2026-06-23 アプリケーション全体のDocker Compose対応
 - バックエンド（`backend/Dockerfile`）とフロントエンド（`frontend/Dockerfile`）のDockerfileを作成。
+- `docker-compose.yml` を更新し、PostgreSQL・Redisに加えて、`backend`（NestJS）と `frontend`（Next.js）のビルド・コンテナ実行定義を追加。
 - コンテナ間通信のための環境変数定義を調整。
 - モノレポ構成内の package-lock.json 不整合による `npm ci` のビルドエラーを解決するため、Dockerfile のパッケージインストールを `npm install` に変更。
 - npmピア依存関係のエラー（Apollo Server等のバージョン衝突）を解決するため、`--legacy-peer-deps` オプションを指定してインストールするように変更。
 - ホスト側のポート衝突（ポート 3000）を回避するため、フロントエンドのホスト側ポートを `3009` に変更。
 - `CampaignsModule` と `DrawsModule` 間の相互モジュールインポートによる `UndefinedModuleException` エラーを解消するため、両モジュールとサービス・コントローラーに `forwardRef` を適用して循環参照を回避。
 - Dockerビルドの高速化（2および3）に向け、`.dockerignore`の定義に加え、Dockerfileの `npm install` 実行時に BuildKit の `npm` キャッシュマウント（`--mount=type=cache`）を導入。
+- 共通開発ルールや Docker 高速化設定などの使い回せる項目を [AGENTS_BASE.md](file:///home/n1lsqn/workspaces/Ataru-X/AGENTS_BASE.md) へ切り出し、本ファイルを要件仕様にスリム化。
