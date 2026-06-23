@@ -565,3 +565,16 @@ git commit -m "<type>(<scope>): <変更内容の要約>"
 <!-- ↓ここから追記 -->
 ## 2026-06-23 プロジェクト要件の追加
 - ユーザーから提示された「Xキャンペーン抽選プラットフォーム」の要件定義を `agents.md` に追記・統合しました。
+
+## 2026-06-23 キャンペーン抽選プラットフォームのフル実装
+- モノレポ構造のセットアップ（ルート、frontend/、backend/）。
+- PostgreSQLとRedisをDocker Composeで稼働するよう構成（ポート衝突回避対応）。
+- バックエンド（NestJS / TypeORM / GraphQL / BullMQ）の構築：
+  - データベースエンティティ（User, Campaign, CampaignCondition, Participant, Winner）を定義。
+  - キャンペーン応募条件（RT, Follow, Like, Reply, Quote, Hashtag, Keyword Reply）の自動評価エンジンを実装。
+  - BullMQを用いた応募者データの非同期取得・評価プロセスを実装。
+  - SHA-256を用いた公平かつ再現可能な抽選ロジックを実装。
+  - RESTコントローラーとGraphQLリゾルバーを完備。CSVエクスポート機能を搭載。
+- フロントエンド（Next.js / TypeScript / TailwindCSS）の構築：
+  - リアルタイム非同期進捗ポーリングに対応したインタラクティブなダッシュボードを作成。
+  - キャンペーン一覧、条件設定画面、詳細スタッツ、抽選・再抽選機能、当選者一覧の表示に対応。
