@@ -581,5 +581,5 @@ git commit -m "<type>(<scope>): <変更内容の要約>"
 
 ## 2026-06-23 アプリケーション全体のDocker Compose対応
 - バックエンド（`backend/Dockerfile`）とフロントエンド（`frontend/Dockerfile`）のDockerfileを作成。
-- `docker-compose.yml` を更新し、PostgreSQL・Redisに加えて、`backend`（NestJS）と `frontend`（Next.js）のビルド・コンテナ実行定義を追加。
 - コンテナ間通信のための環境変数定義を調整。
+- モノレポ構成内の package-lock.json 不整合による `npm ci` のビルドエラーを解決するため、Dockerfile のパッケージインストールを `npm install` に変更。
