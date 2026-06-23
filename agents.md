@@ -586,3 +586,4 @@ git commit -m "<type>(<scope>): <変更内容の要約>"
 - npmピア依存関係のエラー（Apollo Server等のバージョン衝突）を解決するため、`--legacy-peer-deps` オプションを指定してインストールするように変更。
 - ホスト側のポート衝突（ポート 3000）を回避するため、フロントエンドのホスト側ポートを `3009` に変更。
 - `CampaignsModule` と `DrawsModule` 間の相互モジュールインポートによる `UndefinedModuleException` エラーを解消するため、両モジュールとサービス・コントローラーに `forwardRef` を適用して循環参照を回避。
+- Dockerビルドの高速化（2および3）に向け、`.dockerignore`の定義に加え、Dockerfileの `npm install` 実行時に BuildKit の `npm` キャッシュマウント（`--mount=type=cache`）を導入。

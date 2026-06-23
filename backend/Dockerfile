@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies using legacy peer deps to bypass version conflicts
-RUN npm install --legacy-peer-deps
+# Install dependencies using legacy peer deps and npm cache mounting for faster builds
+RUN --mount=type=cache,target=/root/.npm npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .

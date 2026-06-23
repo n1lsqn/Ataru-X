@@ -81,6 +81,7 @@ export default function Home() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [connectionError, setConnectionError] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [fetchStatus, setFetchStatus] = useState<string>('');
   
@@ -104,6 +105,7 @@ export default function Home() {
   const loadCampaigns = async () => {
     try {
       setLoading(true);
+      setConnectionError(false);
       const res = await fetch(`${BACKEND_URL}/api/campaigns`);
       if (res.ok) {
         const data = await res.json();
@@ -115,9 +117,12 @@ export default function Home() {
             : data[0];
           setSelectedCampaign(updatedSelected);
         }
+      } else {
+        setConnectionError(true);
       }
     } catch (e) {
       console.error("Error loading campaigns:", e);
+      setConnectionError(true);
     } finally {
       setLoading(false);
     }
@@ -130,9 +135,13 @@ export default function Home() {
   // Fetch participants when selectedCampaign changes
   useEffect(() => {
     if (selectedCampaign) {
+      setConnectionError(false);
       // Fetch full campaign details
       fetch(`${BACKEND_URL}/api/campaigns/${selectedCampaign.id}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
         .then(data => {
           if (data && data.participants) {
             setParticipants(data.participants);
@@ -140,7 +149,10 @@ export default function Home() {
             setParticipants([]);
           }
         })
-        .catch(err => console.error("Error fetching campaign details:", err));
+        .catch(err => {
+          console.error("Error fetching campaign details:", err);
+          setConnectionError(true);
+        });
     } else {
       setParticipants([]);
     }
@@ -325,10 +337,10 @@ export default function Home() {
   const getConditionIcon = (type: ConditionType) => {
     switch (type) {
       case ConditionType.RETWEET: return <Repeat className="w-4 h-4 text-emerald-400" />;
-      case ConditionType.FOLLOW: return <UserCheck className="w-4 h-4 text-sky-400" />;
+      case ConditionType.FOLLOW: return <UserCheck className="w-4 h-4 text-purple-400" />;
       case ConditionType.LIKE: return <Heart className="w-4 h-4 text-pink-400" />;
       case ConditionType.REPLY: return <MessageSquare className="w-4 h-4 text-indigo-400" />;
-      case ConditionType.QUOTE: return <Repeat className="w-4 h-4 text-cyan-400 -scale-x-100 rotate-90" />;
+      case ConditionType.QUOTE: return <Repeat className="w-4 h-4 text-fuchsia-400 -scale-x-100 rotate-90" />;
       case ConditionType.HASHTAG: return <Hash className="w-4 h-4 text-violet-400" />;
       case ConditionType.KEYWORD_REPLY: return <Search className="w-4 h-4 text-amber-400" />;
     }
@@ -353,11 +365,11 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-slate-900 bg-slate-900/40 backdrop-blur-md sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-sky-500 to-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
+          <div className="bg-gradient-to-tr from-purple-500 to-fuchsia-600 p-2 rounded-xl text-white shadow-lg shadow-purple-500/20">
             <Trophy className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
               ATARU-X
             </h1>
             <p className="text-xs text-slate-500 font-medium">Campaign Draw Dashboard</p>
@@ -367,7 +379,7 @@ export default function Home() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 transition-all font-semibold rounded-lg text-sm text-white shadow-lg shadow-indigo-500/10 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 transition-all font-semibold rounded-lg text-sm text-white shadow-lg shadow-fuchsia-500/10 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             キャンペーン作成
@@ -387,14 +399,26 @@ export default function Home() {
               className="text-slate-500 hover:text-slate-300 transition-colors p-1.5 rounded-lg bg-slate-900/60 border border-slate-800"
               title="リロード"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-sky-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-purple-400' : ''}`} />
             </button>
           </div>
 
           {loading && campaigns.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-900/30 rounded-xl border border-slate-900">
-              <RefreshCw className="w-8 h-8 text-sky-500 animate-spin mb-3" />
+              <RefreshCw className="w-8 h-8 text-purple-500 animate-spin mb-3" />
               <p className="text-sm text-slate-500">ロード中...</p>
+            </div>
+          ) : connectionError ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-rose-950/10 rounded-xl border border-rose-500/20">
+              <AlertCircle className="w-12 h-12 text-rose-500 mb-3" />
+              <p className="text-sm font-semibold text-rose-400">サーバー接続エラー</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-[200px]">バックエンドサーバーに接続できません。起動状態を確認してください。</p>
+              <button 
+                onClick={loadCampaigns}
+                className="mt-4 px-3.5 py-2 bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800/30 text-xs font-semibold text-rose-300 rounded-xl transition-colors cursor-pointer"
+              >
+                再試行する
+              </button>
             </div>
           ) : campaigns.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-900/30 rounded-xl border border-slate-900 border-dashed">
@@ -414,15 +438,15 @@ export default function Home() {
                     onClick={() => setSelectedCampaign(camp)}
                     className={`p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden group ${
                       isSelected 
-                        ? 'bg-slate-900 border-sky-500/50 shadow-md shadow-sky-500/5' 
+                        ? 'bg-slate-900 border-purple-500/50 shadow-md shadow-purple-500/5' 
                         : 'bg-slate-900/40 border-slate-900 hover:border-slate-800 hover:bg-slate-900/70'
                     }`}
                   >
                     {/* Hover Glow Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-sky-500/0 via-sky-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/0 via-purple-500/0 to-fuchsia-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
                     <div className="flex items-start justify-between gap-3 relative z-10">
-                      <div className="font-semibold text-slate-100 text-sm group-hover:text-sky-400 transition-colors line-clamp-1">
+                      <div className="font-semibold text-slate-100 text-sm group-hover:text-purple-400 transition-colors line-clamp-1">
                         {camp.title}
                       </div>
                       {winnerCount > 0 ? (
@@ -430,7 +454,7 @@ export default function Home() {
                           抽選済
                         </span>
                       ) : (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 whitespace-nowrap">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-bold border border-purple-500/20 whitespace-nowrap">
                           未抽選
                         </span>
                       )}
@@ -467,17 +491,17 @@ export default function Home() {
               <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-900/80 backdrop-blur-sm">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <span className="text-xs text-sky-400 font-semibold tracking-wider uppercase">Active Campaign</span>
+                    <span className="text-xs text-purple-400 font-semibold tracking-wider uppercase">Active Campaign</span>
                     <h2 className="text-2xl font-bold text-white mt-1">{selectedCampaign.title}</h2>
                     <a 
                       href={`https://x.com/i/status/${selectedCampaign.tweetId}`} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="text-xs text-slate-400 hover:text-sky-400 inline-flex items-center gap-1.5 mt-2 transition-colors font-medium bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-900"
+                      className="text-xs text-slate-400 hover:text-purple-400 inline-flex items-center gap-1.5 mt-2 transition-colors font-medium bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-900"
                     >
-                      <Repeat className="w-3.5 h-3.5 text-sky-400" />
+                      <Repeat className="w-3.5 h-3.5 text-purple-400" />
                       ポストID: {selectedCampaign.tweetId}
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </div>
 
@@ -494,7 +518,7 @@ export default function Home() {
                     <button
                       onClick={handleDrawWinners}
                       disabled={actionLoading || participants.length === 0}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 font-semibold text-sm text-white shadow-lg shadow-sky-500/5 transition-all cursor-pointer disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 font-semibold text-sm text-white shadow-lg shadow-purple-500/5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <Trophy className="w-4 h-4" />
                       抽選する
@@ -522,7 +546,7 @@ export default function Home() {
                 </div>
 
                 {fetchStatus && (
-                  <div className="mt-4 p-3 bg-sky-950/30 border border-sky-900/30 rounded-xl flex items-center gap-2 text-xs text-sky-400">
+                  <div className="mt-4 p-3 bg-purple-950/30 border border-purple-900/30 rounded-xl flex items-center gap-2 text-xs text-purple-400">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                     <span>{fetchStatus}</span>
                   </div>
@@ -552,11 +576,11 @@ export default function Home() {
                 </div>
 
                 <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-900 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-slate-950 text-indigo-400">
+                  <div className="p-3 rounded-xl bg-slate-950 text-purple-400">
                     <Trophy className="w-6 h-6" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-indigo-400">
+                    <div className="text-2xl font-bold text-purple-400">
                       {selectedCampaign.winners?.length || 0} / {selectedCampaign.winnerCount}
                     </div>
                     <div className="text-xs text-slate-500 font-medium">当選者数</div>
@@ -598,7 +622,7 @@ export default function Home() {
                 {/* Fairness proof (col-span-5) */}
                 <div className="md:col-span-5 p-6 rounded-2xl bg-slate-900/40 border border-slate-900 flex flex-col gap-4">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                    <ShieldCheck className="w-4 h-4 text-purple-400" />
                     <h3 className="text-sm font-bold text-slate-300">公平性・再現性の証明</h3>
                   </div>
                   {selectedCampaign.drawSeed ? (
@@ -617,7 +641,7 @@ export default function Home() {
                           </div>
                         </div>
                       </div>
-                      <div className="p-3 bg-indigo-950/20 border border-indigo-900/30 text-[10px] text-indigo-400 rounded-xl leading-relaxed">
+                      <div className="p-3 bg-purple-950/20 border border-purple-900/30 text-[10px] text-purple-400 rounded-xl leading-relaxed">
                         このSeed値と参加者ハッシュ値により、抽選結果は完全に暗号化再現が可能です。
                       </div>
                     </div>
@@ -632,8 +656,8 @@ export default function Home() {
 
               {/* Winners section (if draw has run) */}
               {selectedCampaign.winners && selectedCampaign.winners.length > 0 && (
-                <div className="p-6 rounded-2xl bg-gradient-to-tr from-sky-950/10 via-indigo-950/10 to-indigo-900/10 border border-indigo-500/20 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 text-indigo-500/10 pointer-events-none">
+                <div className="p-6 rounded-2xl bg-gradient-to-tr from-purple-950/10 via-fuchsia-950/10 to-purple-900/10 border border-purple-500/20 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 text-purple-500/10 pointer-events-none">
                     <Trophy className="w-36 h-36" />
                   </div>
                   
@@ -649,7 +673,7 @@ export default function Home() {
                         return (
                           <div 
                             key={win.id} 
-                            className="flex items-center gap-3 p-3 bg-slate-900/80 rounded-xl border border-indigo-500/10 shadow-lg shadow-indigo-950/50"
+                            className="flex items-center gap-3 p-3 bg-slate-900/80 rounded-xl border border-purple-500/10 shadow-lg shadow-fuchsia-950/50"
                           >
                             <img 
                               src={profile?.iconUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${win.userId}`} 
@@ -660,7 +684,7 @@ export default function Home() {
                               <div className="text-sm font-bold text-white truncate">
                                 {profile?.displayName || 'Loading...'}
                               </div>
-                              <div className="text-xs text-sky-400 font-medium truncate">
+                              <div className="text-xs text-purple-400 font-medium truncate">
                                 @{profile?.username || win.userId}
                               </div>
                             </div>
@@ -771,7 +795,7 @@ export default function Home() {
           <div className="bg-slate-900 border border-slate-800 max-w-lg w-full rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Plus className="w-5 h-5 text-sky-500" />
+                <Plus className="w-5 h-5 text-purple-500" />
                 キャンペーン新規作成
               </h3>
               <button 
@@ -793,7 +817,7 @@ export default function Home() {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="例: Ataru-X リリース記念プレゼント企画"
-                    className="bg-slate-950 border border-slate-800 focus:border-sky-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full placeholder:text-slate-600"
+                    className="bg-slate-950 border border-slate-800 focus:border-purple-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full placeholder:text-slate-600"
                   />
                 </div>
 
@@ -805,7 +829,7 @@ export default function Home() {
                     value={newPostUrl}
                     onChange={(e) => setNewPostUrl(e.target.value)}
                     placeholder="例: https://x.com/username/status/123456789"
-                    className="bg-slate-950 border border-slate-800 focus:border-sky-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full placeholder:text-slate-600"
+                    className="bg-slate-950 border border-slate-800 focus:border-purple-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full placeholder:text-slate-600"
                   />
                 </div>
 
@@ -818,7 +842,7 @@ export default function Home() {
                       min={1}
                       value={newWinnerCount}
                       onChange={(e) => setNewWinnerCount(parseInt(e.target.value))}
-                      className="bg-slate-950 border border-slate-800 focus:border-sky-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full"
+                      className="bg-slate-950 border border-slate-800 focus:border-purple-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full"
                     />
                   </div>
 
@@ -828,7 +852,7 @@ export default function Home() {
                       type="datetime-local"
                       value={newEndAt}
                       onChange={(e) => setNewEndAt(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 focus:border-sky-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full text-slate-400"
+                      className="bg-slate-950 border border-slate-800 focus:border-purple-500/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none w-full text-slate-400"
                     />
                   </div>
                 </div>
@@ -847,7 +871,7 @@ export default function Home() {
                           key={type}
                           className={`p-3 rounded-xl border transition-all ${
                             condState.enabled 
-                              ? 'bg-slate-950/60 border-indigo-500/30' 
+                              ? 'bg-slate-950/60 border-purple-500/35' 
                               : 'bg-slate-950/20 border-slate-900 hover:bg-slate-950/40'
                           }`}
                         >
@@ -857,7 +881,7 @@ export default function Home() {
                                 type="checkbox"
                                 checked={condState.enabled}
                                 onChange={(e) => handleConditionChange(type, 'enabled', e.target.checked)}
-                                className="w-4 h-4 rounded text-sky-500 focus:ring-0 focus:ring-offset-0 bg-slate-900 border-slate-800"
+                                className="w-4 h-4 rounded text-purple-500 focus:ring-0 focus:ring-offset-0 bg-slate-900 border-slate-800"
                               />
                               <span className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                                 {getConditionIcon(type)}
@@ -874,7 +898,7 @@ export default function Home() {
                                 value={condState.param}
                                 onChange={(e) => handleConditionChange(type, 'param', e.target.value)}
                                 placeholder={isHashtag ? '#キャンペーンハッシュタグ' : '指定するキーワード'}
-                                className="bg-slate-900 border border-slate-800 focus:border-sky-500/50 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none w-full placeholder:text-slate-600"
+                                className="bg-slate-900 border border-slate-800 focus:border-purple-500/50 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none w-full placeholder:text-slate-600"
                               />
                             </div>
                           )}
@@ -897,7 +921,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 font-semibold text-sm text-white shadow-lg shadow-sky-500/5 transition-all cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 font-semibold text-sm text-white shadow-lg shadow-purple-500/5 transition-all cursor-pointer disabled:opacity-50"
                 >
                   作成する
                 </button>
