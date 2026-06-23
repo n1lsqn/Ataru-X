@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies using npm install (for monorepo compatibility)
-RUN npm install
+# Install dependencies using legacy peer deps to bypass version conflicts
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
