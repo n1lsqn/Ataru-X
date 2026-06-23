@@ -19,6 +19,37 @@ services:
     volumes:
       - redis_data:/data
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ataru-backend
+    ports:
+      - '3001:3001'
+    environment:
+      - PORT=3001
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgrespassword
+      - DATABASE_NAME=ataru_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=supersecretjwtkeyforataruxcampaignlotteryplatform
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ataru-frontend
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
   redis_data:

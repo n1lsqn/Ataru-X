@@ -578,3 +578,8 @@ git commit -m "<type>(<scope>): <変更内容の要約>"
 - フロントエンド（Next.js / TypeScript / TailwindCSS）の構築：
   - リアルタイム非同期進捗ポーリングに対応したインタラクティブなダッシュボードを作成。
   - キャンペーン一覧、条件設定画面、詳細スタッツ、抽選・再抽選機能、当選者一覧の表示に対応。
+
+## 2026-06-23 アプリケーション全体のDocker Compose対応
+- バックエンド（`backend/Dockerfile`）とフロントエンド（`frontend/Dockerfile`）のDockerfileを作成。
+- `docker-compose.yml` を更新し、PostgreSQL・Redisに加えて、`backend`（NestJS）と `frontend`（Next.js）のビルド・コンテナ実行定義を追加。
+- コンテナ間通信のための環境変数定義を調整。
