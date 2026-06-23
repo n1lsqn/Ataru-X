@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { Campaign } from '../database/entities/campaign.entity';
@@ -17,7 +17,7 @@ import { ParticipantsModule } from '../participants/participants.module';
       name: 'participant-fetch',
     }),
     UsersModule,
-    DrawsModule,
+    forwardRef(() => DrawsModule),
     ParticipantsModule,
   ],
   providers: [CampaignsService, CampaignsResolver],

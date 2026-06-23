@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Winner } from '../database/entities/winner.entity';
@@ -9,6 +9,7 @@ import * as crypto from 'crypto';
 @Injectable()
 export class DrawsService {
   constructor(
+    @Inject(forwardRef(() => CampaignsService))
     private readonly campaignsService: CampaignsService,
     private readonly participantsService: ParticipantsService,
     @InjectRepository(Winner)

@@ -585,3 +585,4 @@ git commit -m "<type>(<scope>): <変更内容の要約>"
 - モノレポ構成内の package-lock.json 不整合による `npm ci` のビルドエラーを解決するため、Dockerfile のパッケージインストールを `npm install` に変更。
 - npmピア依存関係のエラー（Apollo Server等のバージョン衝突）を解決するため、`--legacy-peer-deps` オプションを指定してインストールするように変更。
 - ホスト側のポート衝突（ポート 3000）を回避するため、フロントエンドのホスト側ポートを `3009` に変更。
+- `CampaignsModule` と `DrawsModule` 間の相互モジュールインポートによる `UndefinedModuleException` エラーを解消するため、両モジュールとサービス・コントローラーに `forwardRef` を適用して循環参照を回避。

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Res } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Res, Inject, forwardRef } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import * as express from 'express';
@@ -13,6 +13,7 @@ export class CampaignsController {
   constructor(
     private readonly campaignsService: CampaignsService,
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => DrawsService))
     private readonly drawsService: DrawsService,
     private readonly participantsService: ParticipantsService,
     @InjectQueue('participant-fetch') private readonly fetchQueue: Queue,

@@ -1,4 +1,5 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Inject, forwardRef } from '@nestjs/common';
 import { CampaignsService } from './campaigns.service';
 import { Campaign } from '../database/entities/campaign.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
@@ -12,6 +13,7 @@ export class CampaignsResolver {
   constructor(
     private readonly campaignsService: CampaignsService,
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => DrawsService))
     private readonly drawsService: DrawsService,
     @InjectQueue('participant-fetch') private readonly fetchQueue: Queue,
   ) {}
