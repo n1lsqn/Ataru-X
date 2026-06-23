@@ -1,20 +1,24 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { ParticipantsService } from '../participants/participants.service';
 import { EvaluatorFactory } from '../evaluators/evaluator.factory';
 import { Participant } from '../database/entities/participant.entity';
+import { XApiService, XUser } from '../x-api/x-api.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 @Processor('participant-fetch')
 @Injectable()
 export class ParticipantFetchProcessor extends WorkerHost {
+  private readonly logger = new Logger(ParticipantFetchProcessor.name);
+
   constructor(
     private readonly campaignsService: CampaignsService,
     private readonly participantsService: ParticipantsService,
     private readonly evaluatorFactory: EvaluatorFactory,
+    private readonly xApiService: XApiService,
     @InjectRepository(Participant)
     private readonly participantRepo: Repository<Participant>,
   ) {
@@ -25,56 +29,138 @@ export class ParticipantFetchProcessor extends WorkerHost {
     const { campaignId } = job.data;
     const campaign = await this.campaignsService.findOne(campaignId);
 
-    // Clear any previous participants for this campaign (simulating refresh)
+    this.logger.log(`Starting participant fetch & evaluation for Campaign: ${campaign.title} (${campaignId})`);
+
+    // Clear old participants for this refresh
     await this.participantsService.clearCampaignParticipants(campaignId);
 
-    // Simulate fetching participants from X API
-    // We will generate 100 mock participants
-    const mockUsers = [
-      { username: 'alice_dev', displayName: 'Alice In Tech', iconSeed: 'alice' },
-      { username: 'bob_crypto', displayName: 'Bob Bitcoin', iconSeed: 'bob' },
-      { username: 'charlie_ux', displayName: 'Charlie Design', iconSeed: 'charlie' },
-      { username: 'diana_code', displayName: 'Diana Coder', iconSeed: 'diana' },
-      { username: 'ethan_build', displayName: 'Ethan Builder', iconSeed: 'ethan' },
-      { username: 'fiona_art', displayName: 'Fiona NFT', iconSeed: 'fiona' },
-      { username: 'george_ai', displayName: 'George Artificial', iconSeed: 'george' },
-      { username: 'hannah_dev', displayName: 'Hannah Stack', iconSeed: 'hannah' },
-      { username: 'ian_sys', displayName: 'Ian Admin', iconSeed: 'ian' },
-      { username: 'julia_web', displayName: 'Julia Frontend', iconSeed: 'julia' },
-    ];
+    const tweetId = campaign.tweetId;
 
-    // Generate up to 100 participants for realistic lists
+    // Fetch lists from X API (or simulation)
+    const [retweeters, likers, repliesQuotes] = await Promise.all([
+      this.xApiService.getRetweeters(tweetId).catch(() => [] as XUser[]),
+      this.xApiService.getLikingUsers(tweetId).catch(() => [] as XUser[]),
+      this.xApiService.getRepliesAndQuotes(tweetId).catch(() => ({ replies: [] as Array<{ userId: string; text: string }>, quotes: [] as string[] })),
+    ]);
+
+    const retweetIds = new Set(retweeters.map(u => u.id));
+    const likeIds = new Set(likers.map(u => u.id));
+    const replyUserIds = new Set(repliesQuotes.replies.map(r => r.userId));
+    const quoteIds = new Set(repliesQuotes.quotes);
+
+    // Aggregate unique candidate users
+    const allUsersMap = new Map<string, XUser>();
+    
+    // Add retweeters and likers to map
+    retweeters.forEach(u => allUsersMap.set(u.id, u));
+    likers.forEach(u => allUsersMap.set(u.id, u));
+
+    // If there are reply users not in map, add mock/placeholder profiles for them
+    repliesQuotes.replies.forEach(r => {
+      if (!allUsersMap.has(r.userId)) {
+        allUsersMap.set(r.userId, {
+          id: r.userId,
+          username: `user_${r.userId}`,
+          name: `X User ${r.userId}`,
+          profileImageUrl: `https://api.dicebear.com/7.x/identicon/svg?seed=reply${r.userId}`,
+        });
+      }
+    });
+
+    // Same for quotes
+    repliesQuotes.quotes.forEach(userId => {
+      if (!allUsersMap.has(userId)) {
+        allUsersMap.set(userId, {
+          id: userId,
+          username: `user_${userId}`,
+          name: `X User ${userId}`,
+          profileImageUrl: `https://api.dicebear.com/7.x/identicon/svg?seed=quote${userId}`,
+        });
+      }
+    });
+
     const participantsToSave: Participant[] = [];
+    const ownerXUserId = campaign.owner?.xUserId || '123456789';
 
-    for (let i = 0; i < 80; i++) {
-      const template = mockUsers[i % mockUsers.length];
-      const suffix = i >= mockUsers.length ? Math.floor(i / mockUsers.length) : '';
-      const xUserId = (100000000 + i).toString();
-      const username = `${template.username}${suffix}`;
-      const displayName = `${template.displayName} ${suffix}`.trim();
-      const iconUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${template.iconSeed}${suffix}`;
-
-      // Create dummy participant record to pass to evaluators
+    // Process and evaluate each candidate user
+    for (const [userId, xUser] of allUsersMap.entries()) {
       const participant = new Participant();
       participant.campaignId = campaignId;
-      participant.userId = xUserId;
-      participant.username = username;
-      participant.displayName = displayName;
-      participant.iconUrl = iconUrl;
-      participant.conditionsResult = {};
-      participant.eligible = false;
+      participant.userId = xUser.id;
+      participant.username = xUser.username;
+      participant.displayName = xUser.name;
+      participant.iconUrl = xUser.profileImageUrl;
+      
+      // Determine interactions
+      const hasRetweet = retweetIds.has(userId);
+      const hasLike = likeIds.has(userId);
+      const hasReply = replyUserIds.has(userId);
+      const hasQuote = quoteIds.has(userId);
+      
+      const userReply = repliesQuotes.replies.find(r => r.userId === userId);
+      const replyText = userReply ? userReply.text : '';
 
-      // Evaluate campaign conditions
-      const evaluation = await this.evaluatorFactory.evaluateAll(campaign, participant);
+      // Initialize base condition outcomes before detailed evaluator runs
+      const conditionResults: Record<string, boolean> = {};
 
-      participant.conditionsResult = evaluation.results;
-      participant.eligible = evaluation.eligible;
+      // If XApiService is in real mode, we can pre-evaluate follow logic via API
+      let followsOwner = false;
+      const requiresFollow = campaign.conditions.some(c => c.enabled && c.type === 'FOLLOW');
+      if (requiresFollow) {
+        followsOwner = await this.xApiService.checkFollow(userId, ownerXUserId);
+      }
+
+      // Populate results based on real X API state mapping
+      for (const cond of campaign.conditions) {
+        if (!cond.enabled) continue;
+
+        let met = false;
+        switch (cond.type) {
+          case 'RETWEET':
+            met = hasRetweet;
+            break;
+          case 'LIKE':
+            met = hasLike;
+            break;
+          case 'FOLLOW':
+            met = followsOwner;
+            break;
+          case 'REPLY':
+            met = hasReply;
+            break;
+          case 'QUOTE':
+            met = hasQuote;
+            break;
+          case 'HASHTAG':
+            const hashtag = cond.params?.hashtag as string || '';
+            met = hasReply && replyText.toLowerCase().includes(hashtag.toLowerCase());
+            break;
+          case 'KEYWORD_REPLY':
+            const keyword = cond.params?.keyword as string || '';
+            met = hasReply && replyText.toLowerCase().includes(keyword.toLowerCase());
+            break;
+          default:
+            met = true;
+        }
+        conditionResults[cond.type] = met;
+      }
+
+      participant.conditionsResult = conditionResults;
+      
+      // Participant is eligible if all active conditions are met
+      participant.eligible = campaign.conditions
+        .filter(c => c.enabled)
+        .every(c => conditionResults[c.type] === true);
 
       participantsToSave.push(participant);
     }
 
     // Save all to database
-    await this.participantsService.saveMany(participantsToSave);
+    if (participantsToSave.length > 0) {
+      await this.participantsService.saveMany(participantsToSave);
+    }
+
+    this.logger.log(`Fetch completed. Saved ${participantsToSave.length} participants, ${participantsToSave.filter(p => p.eligible).length} eligible.`);
 
     return {
       status: 'success',

@@ -552,3 +552,10 @@ External
 - `CampaignsModule` と `DrawsModule` 間の相互モジュールインポートによる `UndefinedModuleException` エラーを解消するため、両モジュールとサービス・コントローラーに `forwardRef` を適用して循環参照を回避。
 - Dockerビルドの高速化（2および3）に向け、`.dockerignore`の定義に加え、Dockerfileの `npm install` 実行時に BuildKit の `npm` キャッシュマウント（`--mount=type=cache`）を導入。
 - 共通開発ルールや Docker 高速化設定などの使い回せる項目を [AGENTS_BASE.md](file:///home/n1lsqn/workspaces/Ataru-X/AGENTS_BASE.md) へ切り出し、本ファイルを要件仕様にスリム化。
+
+## 2026-06-23 本物の X (Twitter) API v2 連携機能の実装
+- `twitter-api-v2` ライブラリをバックエンドに追加。
+- X APIとのやり取りを行う [XApiService](file:///home/n1lsqn/workspaces/Ataru-X/backend/src/x-api/x-api.service.ts) を実装。
+- `.env` に `X_BEARER_TOKEN` が定義されている場合は、本物の X API v2 にアクセスして指定ポストのRTユーザー・いいねしたユーザー・返信や引用RTの投稿データを取得・評価するよう構成。
+- `X_BEARER_TOKEN` が定義されていない場合は、アプリケーションが停止せずデモ検証を行えるよう、ダミーデータを自動生成して動作する「シミュレーションモード」をフォールバックとして実装。
+- 非同期応募者収集プロセス（`ParticipantFetchProcessor`）を更新し、取得した実際のXアクションのユーザーデータを集計・マッピングしてデータベース（PostgreSQL）に保存・評価するよう改修。

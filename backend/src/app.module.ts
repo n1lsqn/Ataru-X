@@ -16,6 +16,7 @@ import { ParticipantsModule } from './participants/participants.module';
 import { DrawsModule } from './draws/draws.module';
 import { EvaluatorsModule } from './evaluators/evaluators.module';
 import { JobsModule } from './jobs/jobs.module';
+import { XApiModule } from './x-api/x-api.module';
 
 // Entities
 import { User } from './database/entities/user.entity';
@@ -67,6 +68,7 @@ import { Winner } from './database/entities/winner.entity';
     DrawsModule,
     EvaluatorsModule,
     JobsModule,
+    XApiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
