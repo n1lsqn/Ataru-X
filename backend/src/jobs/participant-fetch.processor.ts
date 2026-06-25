@@ -36,11 +36,22 @@ export class ParticipantFetchProcessor extends WorkerHost {
 
     const tweetId = campaign.tweetId;
 
-    // Fetch lists from X API (or simulation)
+    // Determine which API calls are actually needed based on enabled conditions
+    const needsRetweeters = campaign.conditions.some(c => c.enabled && c.type === 'RETWEET');
+    const needsLikers = campaign.conditions.some(c => c.enabled && c.type === 'LIKE');
+    const needsRepliesQuotes = campaign.conditions.some(c => c.enabled && ['REPLY', 'QUOTE', 'HASHTAG', 'KEYWORD_REPLY'].includes(c.type));
+
+    // Execute only the necessary API calls
     const [retweeters, likers, repliesQuotes] = await Promise.all([
-      this.xApiService.getRetweeters(tweetId).catch(() => [] as XUser[]),
-      this.xApiService.getLikingUsers(tweetId).catch(() => [] as XUser[]),
-      this.xApiService.getRepliesAndQuotes(tweetId).catch(() => ({ replies: [] as Array<{ userId: string; text: string }>, quotes: [] as string[] })),
+      needsRetweeters 
+        ? this.xApiService.getRetweeters(tweetId).catch(() => [] as XUser[]) 
+        : Promise.resolve([] as XUser[]),
+      needsLikers 
+        ? this.xApiService.getLikingUsers(tweetId).catch(() => [] as XUser[]) 
+        : Promise.resolve([] as XUser[]),
+      needsRepliesQuotes 
+        ? this.xApiService.getRepliesAndQuotes(tweetId).catch(() => ({ replies: [] as Array<{ userId: string; text: string }>, quotes: [] as string[] }))
+        : Promise.resolve({ replies: [] as Array<{ userId: string; text: string }>, quotes: [] as string[] }),
     ]);
 
     const retweetIds = new Set(retweeters.map(u => u.id));
