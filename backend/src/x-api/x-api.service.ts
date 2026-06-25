@@ -138,10 +138,29 @@ export class XApiService {
     }
   }
 
-  // Check if target user follows source user (Deprecated: use getFollowerIds for batch check)
+  // Check if target user follows source user using lightweight friendship API (1 API call)
   async checkFollow(targetXUserId: string, sourceXUserId: string): Promise<boolean> {
-    const followers = await this.getFollowerIds(sourceXUserId);
-    return followers.has(targetXUserId);
+    if (this.isSimulationMode()) {
+      const numId = parseInt(targetXUserId) || 0;
+      return numId % 5 !== 0;
+    }
+
+    try {
+      const rel = await this.client!.v1.friendship({
+        source_id: targetXUserId,
+        target_id: sourceXUserId,
+      });
+      return rel.relationship.source.following;
+    } catch (e) {
+      this.logger.error(`Error checking follow relationship from ${targetXUserId} to ${sourceXUserId} via friendships/show:`, e);
+      // Fallback to older follower list check if friendship API fails
+      try {
+        const followers = await this.getFollowerIds(sourceXUserId);
+        return followers.has(targetXUserId);
+      } catch (innerError) {
+        return false;
+      }
+    }
   }
 
   // Fetch all follower IDs of a user using pagination

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Winner } from '../database/entities/winner.entity';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { ParticipantsService } from '../participants/participants.service';
+import { XApiService } from '../x-api/x-api.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class DrawsService {
     private readonly participantsService: ParticipantsService,
     @InjectRepository(Winner)
     private readonly winnerRepository: Repository<Winner>,
+    private readonly xApiService: XApiService,
   ) {}
 
   private sha256(data: string): string {
@@ -37,6 +39,10 @@ export class DrawsService {
     // Generate or use seed
     const seed = customSeed || crypto.randomBytes(16).toString('hex');
 
+    // Fetch author user ID dynamically to perform friendship check
+    const tweetAuthorId = await this.xApiService.getTweetAuthorId(campaign.tweetId).catch(() => '123456789');
+    const requiresFollow = campaign.conditions.some(c => c.enabled && c.type === 'FOLLOW');
+
     // Run lottery draw algorithm
     const pool = [...sortedParticipants];
     const chosenWinners: typeof pool = [];
@@ -49,8 +55,20 @@ export class DrawsService {
       const randInt = parseInt(hash.substring(0, 8), 16);
       const pickIndex = randInt % pool.length;
 
-      const [winner] = pool.splice(pickIndex, 1);
-      chosenWinners.push(winner);
+      const candidate = pool[pickIndex];
+      let isEligible = true;
+
+      if (requiresFollow) {
+        isEligible = await this.xApiService.checkFollow(candidate.userId, tweetAuthorId);
+      }
+
+      if (isEligible) {
+        const [winner] = pool.splice(pickIndex, 1);
+        chosenWinners.push(winner);
+      } else {
+        // Disqualify non-follower and remove from pool to try next candidate
+        pool.splice(pickIndex, 1);
+      }
       index++;
     }
 
