@@ -36,6 +36,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=supersecretjwtkeyforataruxcampaignlotteryplatform
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN}
+      - X_API_KEY=${X_API_KEY}
+      - X_API_KEY_SECRET=${X_API_KEY_SECRET}
+      - X_ACCESS_TOKEN=${X_ACCESS_TOKEN}
+      - X_ACCESS_TOKEN_SECRET=${X_ACCESS_TOKEN_SECRET}
     depends_on:
       - postgres
       - redis

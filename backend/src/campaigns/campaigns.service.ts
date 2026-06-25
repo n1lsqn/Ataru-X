@@ -79,4 +79,10 @@ export class CampaignsService {
   async save(campaign: Campaign): Promise<Campaign> {
     return this.campaignRepository.save(campaign);
   }
+
+  async remove(id: string): Promise<boolean> {
+    const campaign = await this.findOne(id);
+    await this.campaignRepository.remove(campaign);
+    return true;
+  }
 }

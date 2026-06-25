@@ -54,6 +54,11 @@ export class DrawsService {
       index++;
     }
 
+    // Save seed and hash on campaign to lock results & support proof of fairness
+    campaign.drawSeed = seed;
+    campaign.drawParticipantHash = participantHash;
+    await this.campaignsService.save(campaign);
+
     // Delete any old winners for this campaign (if redrawing)
     await this.winnerRepository.delete({ campaignId });
 
@@ -65,11 +70,6 @@ export class DrawsService {
       }),
     );
     const savedWinners = await this.winnerRepository.save(winnerEntities);
-
-    // Save seed and hash on campaign to lock results & support proof of fairness
-    campaign.drawSeed = seed;
-    campaign.drawParticipantHash = participantHash;
-    await this.campaignsService.save(campaign);
 
     return savedWinners;
   }

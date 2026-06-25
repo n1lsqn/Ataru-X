@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Repeat,
   Heart,
-  UserCheck
+  UserCheck,
+  Trash2
 } from 'lucide-react';
 
 // Condition types to match enum
@@ -74,7 +75,10 @@ interface Campaign {
   winners?: Winner[];
 }
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:3001`
+  : 'http://localhost:3001';
+
 
 export default function Home() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -214,6 +218,30 @@ export default function Home() {
     } catch (e) {
       console.error(e);
       alert('キャンペーンの作成に失敗しました。');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!selectedCampaign) return;
+    if (!confirm('このキャンペーンを削除してもよろしいですか？（応募者データや抽選結果もすべて削除されます）')) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/campaigns/${selectedCampaign.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setSelectedCampaign(null);
+        await loadCampaigns();
+      } else {
+        alert('キャンペーンの削除に失敗しました。');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('エラーが発生しました。');
     } finally {
       setActionLoading(false);
     }
@@ -542,6 +570,15 @@ export default function Home() {
                       <Download className="w-4 h-4" />
                       CSV
                     </a>
+
+                    <button
+                      onClick={handleDeleteCampaign}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-900/30 bg-red-950/20 text-red-400 hover:bg-red-950/40 transition-colors font-semibold text-sm cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      削除
+                    </button>
                   </div>
                 </div>
 
@@ -914,14 +951,14 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-800 hover:bg-slate-900 text-slate-300 transition-colors font-semibold text-sm rounded-lg cursor-pointer"
+                  className="px-4 py-2 border border-slate-800 hover:bg-slate-900 text-slate-300 transition-colors font-semibold text-sm rounded-xl cursor-pointer"
                 >
                   キャンセル
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 font-semibold text-sm text-white shadow-lg shadow-purple-500/5 transition-all cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 font-semibold text-sm text-white shadow-lg shadow-purple-500/5 transition-all rounded-xl cursor-pointer disabled:opacity-50"
                 >
                   作成する
                 </button>

@@ -24,17 +24,46 @@ export class XApiService {
   private readonly client?: TwitterApi;
 
   constructor(private readonly config: ConfigService) {
+    const appKey = this.config.get<string>('X_API_KEY');
+    const appSecret = this.config.get<string>('X_API_KEY_SECRET');
+    const accessToken = this.config.get<string>('X_ACCESS_TOKEN');
+    const accessSecret = this.config.get<string>('X_ACCESS_TOKEN_SECRET');
     const bearerToken = this.config.get<string>('X_BEARER_TOKEN');
-    if (bearerToken) {
+
+    if (appKey && appSecret && accessToken && accessSecret) {
+      this.client = new TwitterApi({
+        appKey,
+        appSecret,
+        accessToken,
+        accessSecret,
+      });
+      this.logger.log('X API Client initialized with OAuth 1.0a User Context.');
+    } else if (bearerToken) {
       this.client = new TwitterApi(bearerToken);
       this.logger.log('X API Client initialized with Bearer Token.');
     } else {
-      this.logger.warn('X_BEARER_TOKEN is not defined. X API calls will fall back to simulation mode.');
+      this.logger.warn('X credentials are not defined. X API calls will fall back to simulation mode.');
     }
   }
 
   isSimulationMode(): boolean {
     return !this.client;
+  }
+
+  // Fetch author user ID of a tweet/post
+  async getTweetAuthorId(tweetId: string): Promise<string> {
+    if (this.isSimulationMode()) {
+      return '123456789'; // Default mock owner/author ID
+    }
+    try {
+      const tweetResult = await this.client!.v2.singleTweet(tweetId, {
+        'tweet.fields': ['author_id'],
+      });
+      return tweetResult.data.author_id || '123456789';
+    } catch (e) {
+      this.logger.error(`Error fetching author ID for tweet ${tweetId}:`, e);
+      return '123456789';
+    }
   }
 
   // Fetch users who retweeted a tweet
@@ -44,10 +73,23 @@ export class XApiService {
     }
 
     try {
-      const result = await this.client!.v2.tweetRetweetedBy(tweetId, {
-        'user.fields': ['profile_image_url'],
-      });
-      const users: UserV2[] = result.data || [];
+      const users: UserV2[] = [];
+      let nextToken: string | undefined = undefined;
+
+      do {
+        const res: any = await this.client!.v2.tweetRetweetedBy(tweetId, {
+          'user.fields': ['profile_image_url'],
+          max_results: 100,
+          pagination_token: nextToken,
+        });
+
+        if (res.data && res.data.length > 0) {
+          users.push(...res.data);
+        }
+
+        nextToken = res.meta?.next_token;
+      } while (nextToken && users.length < 1000);
+
       return users.map(u => ({
         id: u.id,
         username: u.username,
@@ -67,10 +109,23 @@ export class XApiService {
     }
 
     try {
-      const result = await this.client!.v2.tweetLikedBy(tweetId, {
-        'user.fields': ['profile_image_url'],
-      });
-      const users: UserV2[] = result.data || [];
+      const users: UserV2[] = [];
+      let nextToken: string | undefined = undefined;
+
+      do {
+        const res: any = await this.client!.v2.tweetLikedBy(tweetId, {
+          'user.fields': ['profile_image_url'],
+          max_results: 100,
+          pagination_token: nextToken,
+        });
+
+        if (res.data && res.data.length > 0) {
+          users.push(...res.data);
+        }
+
+        nextToken = res.meta?.next_token;
+      } while (nextToken && users.length < 1000);
+
       return users.map(u => ({
         id: u.id,
         username: u.username,
@@ -83,20 +138,41 @@ export class XApiService {
     }
   }
 
-  // Check if target user follows source user
+  // Check if target user follows source user (Deprecated: use getFollowerIds for batch check)
   async checkFollow(targetXUserId: string, sourceXUserId: string): Promise<boolean> {
+    const followers = await this.getFollowerIds(sourceXUserId);
+    return followers.has(targetXUserId);
+  }
+
+  // Fetch all follower IDs of a user using pagination
+  async getFollowerIds(sourceXUserId: string): Promise<Set<string>> {
+    const followerIds = new Set<string>();
     if (this.isSimulationMode()) {
-      const numId = parseInt(targetXUserId) || 0;
-      return numId % 5 !== 0;
+      // Return dummy followers
+      for (let i = 0; i < 100; i++) {
+        const xUserId = (100000000 + i).toString();
+        if (i % 5 !== 0) {
+          followerIds.add(xUserId);
+        }
+      }
+      return followerIds;
     }
 
     try {
-      const result = await this.client!.v2.followers(sourceXUserId);
-      const followers: UserV2[] = result.data || [];
-      return followers.some(follower => follower.id === targetXUserId);
+      let nextToken: string | undefined = undefined;
+      do {
+        const res: any = await this.client!.v2.followers(sourceXUserId, {
+          max_results: 1000,
+          pagination_token: nextToken,
+        });
+        const followers: UserV2[] = res.data || [];
+        followers.forEach(f => followerIds.add(f.id));
+        nextToken = res.meta?.next_token;
+      } while (nextToken);
+      return followerIds;
     } catch (e) {
-      this.logger.error(`Error checking follow relationship from ${targetXUserId} to ${sourceXUserId}:`, e);
-      return false;
+      this.logger.error(`Error fetching followers for ${sourceXUserId}:`, e);
+      return followerIds;
     }
   }
 

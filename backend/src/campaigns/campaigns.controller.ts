@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Res, Inject, forwardRef } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, Body, Res, Inject, forwardRef } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import * as express from 'express';
@@ -85,5 +85,10 @@ export class CampaignsController {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=campaign-${campaign.id}-participants.csv`);
     return res.status(200).send(csvContent);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return this.campaignsService.remove(id);
   }
 }

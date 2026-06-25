@@ -559,3 +559,13 @@ External
 - `.env` に `X_BEARER_TOKEN` が定義されている場合は、本物の X API v2 にアクセスして指定ポストのRTユーザー・いいねしたユーザー・返信や引用RTの投稿データを取得・評価するよう構成。
 - `X_BEARER_TOKEN` が定義されていない場合は、アプリケーションが停止せずデモ検証を行えるよう、ダミーデータを自動生成して動作する「シミュレーションモード」をフォールバックとして実装。
 - 非同期応募者収集プロセス（`ParticipantFetchProcessor`）を更新し、取得した実際のXアクションのユーザーデータを集計・マッピングしてデータベース（PostgreSQL）に保存・評価するよう改修。
+
+## 2026-06-23 X API トークン設定・開発ガイドライン更新
+- ユーザーから提供された本物の X API `X_BEARER_TOKEN` をプロジェクトルートの [`.env`](file:///home/n1lsqn/workspaces/Ataru-X/.env) に追加設定。
+- Docker Compose 起動時に環境変数が backend コンテナへ正しく伝搬されるよう [docker-compose.yml](file:///home/n1lsqn/workspaces/Ataru-X/docker-compose.yml) をアップデート。
+- 外部API等の激しい仕様変更に自律的に適応するため、常に最新の一次情報を検索して調査・対応することを定める開発ルールを [AGENTS_BASE.md](file:///home/n1lsqn/workspaces/Ataru-X/AGENTS_BASE.md) に追加。
+
+## 2026-06-23 キャンペーン削除機能の実装およびデザイン調整
+- バックエンド ([campaigns.service.ts](file:///home/n1lsqn/workspaces/Ataru-X/backend/src/campaigns/campaigns.service.ts), [campaigns.controller.ts](file:///home/n1lsqn/workspaces/Ataru-X/backend/src/campaigns/campaigns.controller.ts)) にキャンペーン削除用エンドポイントを追加（関連データも自動的にカスケード削除）。
+- フロントエンド ([page.tsx](file:///home/n1lsqn/workspaces/Ataru-X/frontend/src/app/page.tsx)) にキャンペーン削除機能と確認用ダイアログを追加。
+- キャンペーン新規作成モーダルのアクションボタン（「キャンセル」「作成する」）のスタイルに `rounded-xl` を適用し、他のボタンと角丸の丸みを統一。

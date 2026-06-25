@@ -79,8 +79,18 @@ export class ParticipantFetchProcessor extends WorkerHost {
       }
     });
 
+    // Fetch who posted the tweet dynamically
+    const tweetAuthorId = await this.xApiService.getTweetAuthorId(tweetId).catch(() => '123456789');
+
+    // Pre-fetch followers once to avoid rate limits in the loop
+    let followerIds = new Set<string>();
+    const requiresFollow = campaign.conditions.some(c => c.enabled && c.type === 'FOLLOW');
+    if (requiresFollow) {
+      this.logger.log(`Fetching followers for author ${tweetAuthorId} to check FOLLOW condition...`);
+      followerIds = await this.xApiService.getFollowerIds(tweetAuthorId).catch(() => new Set<string>());
+    }
+
     const participantsToSave: Participant[] = [];
-    const ownerXUserId = campaign.owner?.xUserId || '123456789';
 
     // Process and evaluate each candidate user
     for (const [userId, xUser] of allUsersMap.entries()) {
@@ -103,12 +113,8 @@ export class ParticipantFetchProcessor extends WorkerHost {
       // Initialize base condition outcomes before detailed evaluator runs
       const conditionResults: Record<string, boolean> = {};
 
-      // If XApiService is in real mode, we can pre-evaluate follow logic via API
-      let followsOwner = false;
-      const requiresFollow = campaign.conditions.some(c => c.enabled && c.type === 'FOLLOW');
-      if (requiresFollow) {
-        followsOwner = await this.xApiService.checkFollow(userId, ownerXUserId);
-      }
+      // Check if user follows the author from pre-fetched set
+      const followsAuthor = followerIds.has(userId);
 
       // Populate results based on real X API state mapping
       for (const cond of campaign.conditions) {
@@ -123,7 +129,7 @@ export class ParticipantFetchProcessor extends WorkerHost {
             met = hasLike;
             break;
           case 'FOLLOW':
-            met = followsOwner;
+            met = followsAuthor;
             break;
           case 'REPLY':
             met = hasReply;
