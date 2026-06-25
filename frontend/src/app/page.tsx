@@ -75,9 +75,7 @@ interface Campaign {
   winners?: Winner[];
 }
 
-const BACKEND_URL = typeof window !== 'undefined'
-  ? `${window.location.protocol}//${window.location.hostname}:3001`
-  : 'http://localhost:3001';
+const BACKEND_URL = '';
 
 
 export default function Home() {
